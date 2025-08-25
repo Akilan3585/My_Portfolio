@@ -22,20 +22,20 @@ The pipeline ensures:
 
 Below is the CI/CD flow for this project:
 
-![CI/CD Flowchart](./image.png)  
+![CI/CD Flowchart](./assets/images/flowchart.png)  
 
 ---
 ##  ArgoCD Pod View
 
 This screenshot shows the **ArgoCD-managed application pods** running inside Kubernetes:
 
-![ArgoCD Pods](./argocd_pod.png)  
+![ArgoCD Pods](./assets/images/argocd_pod.png)  
 
 ---
 ##  Output
 
 Below is a sample output from `kubectl get pods` after a successful deployment:
-![Output](./output.png)
+![Output](./assets/images/output.png)
 ##  Tech Stack
 - **Docker** → Containerization  
 - **GitLab CI/CD** → Continuous Integration  
