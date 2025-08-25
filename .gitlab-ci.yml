@@ -1,0 +1,59 @@
+stages:
+    - build
+    - test
+    - deploy
+variables:
+  IMAGE_NAME: devblog
+  IMAGE_TAG: ${CI_COMMIT_SHORT_SHA}
+  KUBE_DEPLOY_FILE: kubernetes/deployment.yaml
+docker_build:
+    stage: build
+    image: docker:24.0
+    services:
+        - docker:dind
+    variables:
+        DOCKER_DRIVER: overlay2
+    script:
+        - echo "Logging in to Docker..."
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+        - docker tag $IMAGE_NAME:$IMAGE_TAG $DOCKER_USERNAME/$IMAGE_NAME:$IMAGE_TAG
+        - docker push $DOCKER_USERNAME/$IMAGE_NAME:$IMAGE_TAG  
+        - docker images
+        - mkdir imagedir
+        - docker save $IMAGE_NAME:$IMAGE_TAG > imagedir/$IMAGE_NAME.tar
+    artifacts:
+        paths:
+            - "imagedir"
+
+docker_test:
+    stage: test
+    image: docker:24.0
+    needs:
+      - docker_build
+    services:
+        - docker:dind
+    variables:
+        DOCKER_DRIVER: overlay2
+    script:
+        - docker load -i imagedir/$IMAGE_NAME.tar
+        - docker images
+        - docker run -d --name $IMAGE_NAME -p 8080:80 $IMAGE_NAME:$IMAGE_TAG
+        - sleep 5
+        - docker exec $IMAGE_NAME curl http://localhost
+docker_deploy:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - docker_test
+  before_script:
+    - apk add --no-cache sed git
+  script:
+    - |
+      sed -i "s|image: .*|image: $DOCKER_USERNAME/$IMAGE_NAME:$IMAGE_TAG|g" kubernetes/deployment.yaml
+    - git config --global user.name "Akilan.B"
+    - git config --global user.email "akilanb28@gmail.com"
+    - git add $KUBE_DEPLOY_FILE
+    - git commit -m "Updated $IMAGE_NAME:$IMAGE_TAG" || echo "No changes to commit"
+    - git checkout -b feature
+    - git push origin feature
